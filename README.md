@@ -1,6 +1,6 @@
 # Babcie na grzyby 🍄
 
-Zręcznościowa gra dla dwóch osób na pady. Halina i Krystyna, sąsiadki z jednego bloku, od lat rywalizują o lepszy koszyk grzybów. Po lesie krąży dzik, który nie lubi żadnej z nich.
+Zręcznościowa gra dla dwóch osób na pady. Sąsiedzi z jednego bloku od lat rywalizują o lepszy koszyk grzybów. Po lesie krąży dzik, który nie lubi nikogo, i leśniczy, który strzyże wąsem i wlepia mandaty.
 
 **Graj:** https://jab-jab-coder.github.io/game01/
 
@@ -9,9 +9,10 @@ Zręcznościowa gra dla dwóch osób na pady. Halina i Krystyna, sąsiadki z jed
 1. Podłącz dwa pady (Xbox / PlayStation, USB lub Bluetooth) do komputera.
 2. Otwórz link powyżej w Chrome lub Edge (Firefox też działa).
 3. Każdy gracz wciska dowolny przycisk na swoim padzie — przeglądarka „widzi” pada dopiero po pierwszym wciśnięciu.
-4. **A** — start. **F11** lub dwuklik — pełny ekran. Kliknij raz myszką, żeby włączyć dźwięk.
+4. Gałką w lewo / prawo wybierz postać (babcia albo dziadek) i zatwierdź **A**. Gra rusza, gdy oboje są gotowi.
+5. **F11** lub dwuklik — pełny ekran. Kliknij raz myszką, żeby włączyć dźwięk.
 
-Bez padów da się grać na klawiaturze: `WSAD + F G H R` oraz `strzałki + K L J I`, start: `Enter`.
+Bez padów da się grać na klawiaturze: `WSAD + F G H R` oraz `strzałki + K L J I`, wybór postaci: `A/D` i strzałki.
 
 ## Sterowanie
 
@@ -32,6 +33,8 @@ Bez padów da się grać na klawiaturze: `WSAD + F G H R` oraz `strzałki + K L 
 - **Dzik** wpada co 20–30 s, chwilę ryje w ziemi i szarżuje na bliższą babcię. Trafiona gubi pół koszyka — grzyby rozsypują się po lesie i może je zebrać każdy.
 - Jeśli obie babcie staną w kręgu wokół dzika i razem wcisną **X**, dzik ucieka, a każda dostaje **+8**.
 - Gdy różnica wynosi 5+ punktów, borowiki rosną bliżej przegrywającej.
+- **Leśniczy** co jakiś czas robi obchód. Łokieć w jego polu widzenia (żółty krąg) to **mandat −2**.
+- Runda 2 toczy się na drugiej mapie, **w starym borze nad stawem**: brodzenie w stawie spowalnia o połowę. Runda 3 wraca do zagajnika.
 - Ostatnie 15 sekund to zmierzch: grzyby rosną dwa razy szybciej.
 
 ## Struktura
@@ -56,5 +59,6 @@ Lokalnie: `python3 -m http.server` w katalogu repo i `http://localhost:8000` (mo
 - [x] **3. Interakcje** — łokieć, zryw, muchomor, dzik, wspólne „a sio!”
 - [x] **4. Oprawa** — rysowany las, dymki z tekstami, ważenie koszyków, dźwięki
 - [ ] **5. Strojenie po pierwszych partiach na padach** — prędkości, zasięg łokcia, częstotliwość dzika (`js/config.js`)
-- [ ] **6. Więcej żartu** — muzyczka, nowe teksty, leśniczy, deszcz, druga mapa
+- [x] **6. Więcej treści** — nowe teksty, leśniczy, wybór babcia / dziadek, druga mapa
+- [ ] **6b. Jeszcze więcej żartu** — muzyczka, deszcz, trzecia mapa
 - [ ] **7. Wygoda** — wybór długości meczu, tryb turniejowy, zapamiętywanie wyników

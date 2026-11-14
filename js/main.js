@@ -41,6 +41,9 @@ let game = null;
 let result = null;
 let lastBeep = 0;
 let time = 0;
+let ready = [false, false];   // wybór postaci zatwierdzony
+let startIn = null;           // odliczanie do startu po zatwierdzeniu obu
+const prevMx = [0, 0];
 
 function setState(s) { state = s; stateT = 0; }
 
@@ -57,7 +60,7 @@ function finishRound() {
   const matchOver = winner >= 0 && game.wins[winner] >= C.WINS_NEEDED;
   result = {
     winner, matchOver,
-    line: winner >= 0 ? C.LINES.win[(Math.random() * C.LINES.win.length) | 0] : '',
+    line: winner >= 0 ? C.line('win', winner) : '',
   };
   setState('roundEnd');
 }
@@ -69,19 +72,35 @@ function update(dt) {
   switch (state) {
     case 'title': {
       // dołączanie: każde źródło, które wciśnie przycisk, zajmuje wolne miejsce
+      const justJoined = [];
       for (const id of input.sources()) {
         if (input.slots.includes(id) || !input.anyPressed(id)) continue;
         const free = input.slots.indexOf(null);
         if (free < 0) break;
         input.slots[free] = id;
+        justJoined.push(free);
         sfx.play('join');
         input.rumble(free, 0.5, 150);
-        stateT = 0;
       }
-      // odłączony pad zwalnia miejsce
-      input.slots.forEach((id, i) => { if (id && !input.state[id]) input.slots[i] = null; });
-      const ready = input.slots.every(Boolean) && stateT > 0.5;
-      if (ready && input.slots.some((id) => input.pressed(id, 'collect') || input.pressed(id, 'start'))) startMatch();
+      input.slots.forEach((id, i) => {
+        if (id && !input.state[id]) { input.slots[i] = null; ready[i] = false; }   // odłączony pad zwalnia miejsce
+        if (!input.slots[i] || justJoined.includes(i)) return;
+        const st = input.state[input.slots[i]];
+        // wybór postaci: lewo / prawo
+        if (!ready[i] && Math.abs(st.mx) > 0.6 && Math.abs(prevMx[i]) <= 0.6) {
+          C.PLAYERS[i].kind = C.PLAYERS[i].kind === 'babcia' ? 'dziadek' : 'babcia';
+          sfx.play('select');
+        }
+        prevMx[i] = st.mx;
+        if (!ready[i] && (input.pressed(input.slots[i], 'collect') || input.pressed(input.slots[i], 'start'))) {
+          ready[i] = true; sfx.play('ready'); input.rumble(i, 0.4, 120);
+        } else if (ready[i] && input.pressed(input.slots[i], 'elbow')) ready[i] = false;
+      });
+      if (ready[0] && ready[1]) {
+        if (startIn === null) startIn = 0.9;
+        startIn -= dt;
+        if (startIn <= 0) { startIn = null; startMatch(); }
+      } else startIn = null;
       break;
     }
     case 'countdown': {
@@ -101,6 +120,9 @@ function update(dt) {
       if (stateT > 2.4 && input.slots.some((id) => input.pressed(id, 'collect') || input.pressed(id, 'start'))) {
         if (result.matchOver) startMatch();
         else { game.newRound(); lastBeep = 4; setState('countdown'); }
+      } else if (stateT > 2.4 && result.matchOver && input.slots.some((id) => input.pressed(id, 'elbow'))) {
+        ready = [false, false];
+        setState('title');
       }
       break;
     }
@@ -119,15 +141,15 @@ function checkPause() {
 function draw() {
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   if (state === 'title') {
-    R.drawTitle(ctx, input, time, input.slots.every(Boolean), sfx.muted);
+    R.drawTitle(ctx, input, time, ready, sfx.muted, startIn);
     return;
   }
   R.drawWorld(ctx, game, time);
-  if (state === 'countdown') R.drawCountdown(ctx, 3 - stateT);
+  if (state === 'countdown') R.drawCountdown(ctx, 3 - stateT, game);
   if (state === 'roundEnd') R.drawRoundEnd(ctx, game, result, stateT, time);
   if (paused && state !== 'roundEnd') {
     const missing = [0, 1].find((i) => !input.connected(i));
-    R.drawPause(ctx, missing !== undefined ? `${C.PLAYERS[missing].name} zgubiła pada — podłącz go ponownie` : '');
+    R.drawPause(ctx, missing !== undefined ? `${C.PLAYERS[missing].name}: pad odłączony — podłącz go ponownie` : '');
   }
 }
 

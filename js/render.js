@@ -40,18 +40,27 @@ function ell(ctx, x, y, rx, ry, color, a0 = 0, a1 = TAU) {
 // ---------- tło ----------
 let bgCache = { key: null, canvas: null };
 
-function background(key) {
+function background(key, game) {
   if (bgCache.key === key) return bgCache.canvas;
+  const bor = !!game?.pond;                  // druga mapa: stary bór nad stawem
   const cv = document.createElement('canvas');
   cv.width = C.W; cv.height = C.H;
   const c = cv.getContext('2d');
   const g = c.createLinearGradient(0, 0, 0, C.H);
-  g.addColorStop(0, '#5f9a3c'); g.addColorStop(1, '#4a8232');
+  g.addColorStop(0, bor ? '#6c8440' : '#5f9a3c'); g.addColorStop(1, bor ? '#566b30' : '#4a8232');
   c.fillStyle = g; c.fillRect(0, 0, C.W, C.H);
 
   for (let i = 0; i < 70; i++) {            // plamy mchu i światła
     ell(c, rand(0, C.W), rand(0, C.H), rand(40, 130), rand(20, 60),
-      Math.random() < 0.5 ? 'rgba(40,90,30,0.16)' : 'rgba(170,210,90,0.12)');
+      Math.random() < 0.5 ? 'rgba(40,90,30,0.16)' : bor ? 'rgba(190,130,50,0.14)' : 'rgba(170,210,90,0.12)');
+  }
+  if (bor) {                                 // opadłe liście i igliwie
+    for (let i = 0; i < 260; i++) {
+      c.save();
+      c.translate(rand(0, C.W), rand(C.HUD_H, C.H)); c.rotate(rand(0, 3.14));
+      ell(c, 0, 0, rand(3, 6), rand(1.5, 3), ['rgba(214,150,40,0.7)', 'rgba(190,90,40,0.6)', 'rgba(230,190,70,0.6)'][i % 3]);
+      c.restore();
+    }
   }
   c.lineCap = 'round';                       // leśna ścieżka
   c.strokeStyle = 'rgba(196,165,110,0.55)'; c.lineWidth = 46;
@@ -60,6 +69,29 @@ function background(key) {
   c.bezierCurveTo(rand(250, 450), rand(150, 650), rand(750, 950), rand(150, 650), C.W + 30, rand(250, 600));
   c.stroke();
   c.strokeStyle = 'rgba(214,188,135,0.5)'; c.lineWidth = 26; c.stroke();
+  if (bor) {                                 // staw
+    const w = game.pond;
+    ell(c, w.x, w.y + 4, w.rx + 16, w.ry + 14, '#5a4a2c');
+    ell(c, w.x, w.y, w.rx + 6, w.ry + 5, '#4c6a3a');
+    ell(c, w.x, w.y, w.rx, w.ry, '#2c6976');
+    ell(c, w.x - w.rx * 0.12, w.y - w.ry * 0.15, w.rx * 0.72, w.ry * 0.62, '#3a8391');
+    ell(c, w.x - w.rx * 0.3, w.y - w.ry * 0.35, w.rx * 0.28, w.ry * 0.16, 'rgba(255,255,255,0.14)');
+    for (let i = 0; i < 9; i++) {              // lilie wodne
+      const a = rand(0, TAU), k = rand(0.2, 0.8);
+      const lx = w.x + Math.cos(a) * w.rx * k, ly = w.y + Math.sin(a) * w.ry * k;
+      ell(c, lx, ly, 11, 7, '#4f9a4a');
+      if (i % 3 === 0) ell(c, lx + 2, ly - 2, 4, 3.5, '#fff3f8');
+    }
+    c.lineCap = 'round';
+    for (let i = 0; i < 44; i++) {             // trzciny na brzegu
+      const a = rand(0, TAU);
+      const rx0 = w.x + Math.cos(a) * (w.rx + 4), ry0 = w.y + Math.sin(a) * (w.ry + 4);
+      const h = rand(22, 40), lean = rand(-5, 5);
+      c.strokeStyle = '#6f8f3c'; c.lineWidth = 2.5;
+      c.beginPath(); c.moveTo(rx0, ry0); c.lineTo(rx0 + lean, ry0 - h); c.stroke();
+      if (i % 2) { c.strokeStyle = '#6b4526'; c.lineWidth = 5; c.beginPath(); c.moveTo(rx0 + lean, ry0 - h); c.lineTo(rx0 + lean * 1.2, ry0 - h - 9); c.stroke(); }
+    }
+  }
 
   for (let i = 0; i < 520; i++) {            // kępki trawy
     const x = rand(0, C.W), y = rand(C.HUD_H, C.H);
@@ -81,7 +113,7 @@ function background(key) {
     const side = i % 4, t = Math.random();
     const x = side === 0 ? rand(-10, 26) : side === 1 ? rand(C.W - 26, C.W + 10) : t * C.W;
     const y = side < 2 ? C.HUD_H + t * (C.H - C.HUD_H) : side === 2 ? rand(C.HUD_H - 6, C.HUD_H + 26) : rand(C.H - 12, C.H + 12);
-    ell(c, x, y, rand(22, 40), rand(18, 30), ['#2c5a22', '#346a27', '#27501f'][i % 3]);
+    ell(c, x, y, rand(22, 40), rand(18, 30), (bor ? ['#2a4a26', '#31552a', '#243f20'] : ['#2c5a22', '#346a27', '#27501f'])[i % 3]);
   }
   bgCache = { key, canvas: cv };
   return cv;
@@ -137,10 +169,17 @@ function drawTree(ctx, t, time, fade) {
   ctx.save();
   ctx.translate(t.x, t.y);
   ell(ctx, 4, 2, t.R * 0.75, 12, 'rgba(0,0,0,0.22)');
-  ctx.fillStyle = '#6b4526';
-  ctx.fillRect(-10, -t.R * 0.9, 20, t.R * 0.9 + 2);
-  ctx.fillStyle = '#573619';
-  ctx.fillRect(2, -t.R * 0.9, 8, t.R * 0.9 + 2);
+  if (t.kind === 2) {                       // brzoza: biały pień w czarne ciapki
+    ctx.fillStyle = '#f1efe6'; ctx.fillRect(-8, -t.R * 1.1, 16, t.R * 1.1 + 2);
+    ctx.fillStyle = '#d8d5c8'; ctx.fillRect(2, -t.R * 1.1, 6, t.R * 1.1 + 2);
+    ctx.fillStyle = '#2b2b2b';
+    for (let i = 0; i < 4; i++) ctx.fillRect(i % 2 ? -8 : 0, -t.R * (0.2 + i * 0.24), 7, 3);
+  } else {
+    ctx.fillStyle = '#6b4526';
+    ctx.fillRect(-10, -t.R * 0.9, 20, t.R * 0.9 + 2);
+    ctx.fillStyle = '#573619';
+    ctx.fillRect(2, -t.R * 0.9, 8, t.R * 0.9 + 2);
+  }
   const sway = Math.sin(time * 1.2 + t.seed * 10) * 2;
   if (fade) ctx.globalAlpha = 0.4;           // ktoś stoi za drzewem — korona robi się przezroczysta
   if (t.kind === 1) {                       // świerk
@@ -153,9 +192,10 @@ function drawTree(ctx, t, time, fade) {
     }
   } else {                                  // drzewo liściaste
     const cy = -t.R * 1.35;
-    ell(ctx, -t.R * 0.45 + sway, cy + 12, t.R * 0.7, t.R * 0.62, '#2f7030');
-    ell(ctx, t.R * 0.45 + sway, cy + 14, t.R * 0.68, t.R * 0.6, '#2a652b');
-    ell(ctx, sway, cy - 8, t.R * 0.8, t.R * 0.72, '#3b8438');
+    const col = t.kind === 2 ? ['#b9a53a', '#a8932f', '#cdb848'] : ['#2f7030', '#2a652b', '#3b8438'];
+    ell(ctx, -t.R * 0.45 + sway, cy + 12, t.R * 0.7, t.R * 0.62, col[0]);
+    ell(ctx, t.R * 0.45 + sway, cy + 14, t.R * 0.68, t.R * 0.6, col[1]);
+    ell(ctx, sway, cy - 8, t.R * 0.8, t.R * 0.72, col[2]);
     ell(ctx, -t.R * 0.2 + sway, cy - 22, t.R * 0.36, t.R * 0.26, 'rgba(180,230,110,0.25)');
   }
   ctx.restore();
@@ -184,20 +224,30 @@ export function drawGranny(ctx, g, time, scale = 1) {
   ctx.moveTo(-23 - step * 0.4, -1); ctx.lineTo(-19, -40 - bob);
   ctx.arc(-14, -40 - bob, 5, Math.PI, TAU * 0.92);
   ctx.stroke();
-  // sukienka
   const top = -52 - bob;
-  ctx.fillStyle = p.dress;
-  ctx.beginPath();
-  ctx.moveTo(-14, top); ctx.lineTo(14, top);
-  ctx.quadraticCurveTo(24, -26, 22, -6); ctx.lineTo(-22, -6);
-  ctx.quadraticCurveTo(-24, -26, -14, top);
-  ctx.closePath(); ctx.fill();
-  // fartuch
-  ctx.fillStyle = p.apron;
-  ctx.beginPath();
-  ctx.moveTo(-2, top + 10); ctx.lineTo(14, top + 10);
-  ctx.quadraticCurveTo(21, -24, 19, -9); ctx.lineTo(-4, -9);
-  ctx.closePath(); ctx.fill();
+  if (p.male) {
+    // spodnie i sweter
+    ctx.fillStyle = '#4b4f5c';
+    ctx.fillRect(-13 + step * 0.6, -28, 11, 25); ctx.fillRect(3 - step * 0.6, -28, 11, 25);
+    rrect(ctx, -16, top, 32, 30 + bob, 8); ctx.fillStyle = p.dress; ctx.fill();
+    ctx.fillStyle = p.apron;                                   // kołnierzyk
+    ctx.beginPath(); ctx.moveTo(1, top); ctx.lineTo(13, top); ctx.lineTo(8, top + 11); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 2;   // ściągacz swetra
+    ctx.beginPath(); ctx.moveTo(-15, -27); ctx.lineTo(15, -27); ctx.stroke();
+  } else {
+    ctx.fillStyle = p.dress;
+    ctx.beginPath();
+    ctx.moveTo(-14, top); ctx.lineTo(14, top);
+    ctx.quadraticCurveTo(24, -26, 22, -6); ctx.lineTo(-22, -6);
+    ctx.quadraticCurveTo(-24, -26, -14, top);
+    ctx.closePath(); ctx.fill();
+    // fartuch
+    ctx.fillStyle = p.apron;
+    ctx.beginPath();
+    ctx.moveTo(-2, top + 10); ctx.lineTo(14, top + 10);
+    ctx.quadraticCurveTo(21, -24, 19, -9); ctx.lineTo(-4, -9);
+    ctx.closePath(); ctx.fill();
+  }
 
   // koszyk
   const bx = 23, by = -24 - bob + (g.pickAnim > 0 ? 6 : 0);
@@ -240,16 +290,24 @@ export function drawGranny(ctx, g, time, scale = 1) {
   // głowa i chustka
   const hy = top - 11;
   ell(ctx, 0, hy, 15, 15, '#f1c7a5');
-  ctx.fillStyle = p.scarf;
-  ctx.beginPath();
-  ctx.arc(0, hy, 16.5, Math.PI * 0.95, TAU * 0.99);
-  ctx.quadraticCurveTo(9, hy - 7, 3, hy - 8);
-  ctx.quadraticCurveTo(-8, hy - 6, -13, hy + 12);
-  ctx.quadraticCurveTo(-19, hy + 6, -16.4, hy + 2.5);
-  ctx.closePath(); ctx.fill();
-  ell(ctx, -6, hy - 10, 2, 2, p.scarf2); ell(ctx, 3, hy - 13, 2, 2, p.scarf2); ell(ctx, -12, hy - 3, 2, 2, p.scarf2);
-  ctx.fillStyle = p.scarf;                                   // supeł pod brodą
-  ctx.beginPath(); ctx.moveTo(-2, hy + 14); ctx.lineTo(8, hy + 13); ctx.lineTo(4, hy + 21); ctx.closePath(); ctx.fill();
+  if (p.male) {                                              // siwe włosy i kaszkiet
+    ell(ctx, -10, hy + 3, 7, 9, '#dcdcdc');
+    ctx.fillStyle = p.scarf;
+    ctx.beginPath(); ctx.ellipse(-1, hy - 7, 17.5, 11, 0, Math.PI, TAU); ctx.closePath(); ctx.fill();
+    ell(ctx, 12, hy - 7, 12, 3.6, p.scarf);
+    ell(ctx, -1, hy - 17, 2.6, 2, p.scarf2);
+  } else {
+    ctx.fillStyle = p.scarf;
+    ctx.beginPath();
+    ctx.arc(0, hy, 16.5, Math.PI * 0.95, TAU * 0.99);
+    ctx.quadraticCurveTo(9, hy - 7, 3, hy - 8);
+    ctx.quadraticCurveTo(-8, hy - 6, -13, hy + 12);
+    ctx.quadraticCurveTo(-19, hy + 6, -16.4, hy + 2.5);
+    ctx.closePath(); ctx.fill();
+    ell(ctx, -6, hy - 10, 2, 2, p.scarf2); ell(ctx, 3, hy - 13, 2, 2, p.scarf2); ell(ctx, -12, hy - 3, 2, 2, p.scarf2);
+    ctx.fillStyle = p.scarf;                                   // supeł pod brodą
+    ctx.beginPath(); ctx.moveTo(-2, hy + 14); ctx.lineTo(8, hy + 13); ctx.lineTo(4, hy + 21); ctx.closePath(); ctx.fill();
+  }
   ell(ctx, 9, hy + 5, 4, 3, 'rgba(240,120,120,0.45)');        // rumieniec
 
   // twarz
@@ -278,7 +336,10 @@ export function drawGranny(ctx, g, time, scale = 1) {
     else { ctx.moveTo(4, hy + 8); ctx.quadraticCurveTo(8, hy + 10, 12, hy + 7); }
     ctx.stroke();
   }
-  if (g.id === 1) {                                           // okulary Krystyny
+  if (p.male) {                                              // wąsy
+    ell(ctx, 4, hy + 6, 6, 2.6, '#ececec'); ell(ctx, 12, hy + 6, 5, 2.6, '#ececec');
+  }
+  if (g.id === 1) {                                           // okulary
     ctx.strokeStyle = '#2b2b2b'; ctx.lineWidth = 1.6;
     ctx.beginPath(); ctx.arc(3.5, hy, 4.4, 0, TAU); ctx.moveTo(15, hy); ctx.arc(10.6, hy, 4.4, 0, TAU);
     ctx.moveTo(-1, hy); ctx.lineTo(-10, hy - 2); ctx.stroke();
@@ -312,6 +373,71 @@ function drawBubble(ctx, g) {
   ctx.fillStyle = '#fffdf4'; ctx.fill();
   ctx.beginPath(); ctx.moveTo(g.x - 7, y + h); ctx.lineTo(g.x, y + h + 10); ctx.lineTo(g.x + 7, y + h); ctx.stroke();
   txt(ctx, g.bubble, x + w / 2, y + h / 2 + 1, 19, '#3a2618', 'center', 0, 600);
+  ctx.restore();
+}
+
+// ---------- leśniczy ----------
+function drawForester(ctx, f, time) {
+  const stop = f.state === 'stop';
+  const step = stop ? 0 : Math.sin(f.walk) * 5, bob = stop ? 0 : Math.abs(Math.sin(f.walk)) * 2.5;
+  ctx.save();
+  ctx.translate(f.x, f.y); ctx.scale(1.25, 1.25);
+  ell(ctx, 0, 0, 24, 8, 'rgba(0,0,0,0.28)');
+  ctx.scale(f.dir, 1);
+  ctx.fillStyle = '#3d4a2a';                                  // spodnie i buty
+  ctx.fillRect(-11 + step * 0.6, -30, 10, 27); ctx.fillRect(2 - step * 0.6, -30, 10, 27);
+  ell(ctx, -5 + step, -2, 8, 4.5, '#2a1c12'); ell(ctx, 9 - step, -2, 8, 4.5, '#2a1c12');
+  const top = -62 - bob;
+  rrect(ctx, -16, top, 32, 35, 8); ctx.fillStyle = '#4f7a3f'; ctx.fill();   // mundur
+  ctx.fillStyle = '#3a2618'; ctx.fillRect(-16, top + 25, 32, 4);
+  ell(ctx, 3, top + 27, 3, 3, '#e0b84a');
+  ell(ctx, 5, top + 9, 1.8, 1.8, '#e0b84a'); ell(ctx, 5, top + 17, 1.8, 1.8, '#e0b84a');
+  ctx.strokeStyle = '#2a1c12'; ctx.lineWidth = 2;             // lornetka na pasku
+  ctx.beginPath(); ctx.moveTo(-10, top + 2); ctx.lineTo(-5, top + 14); ctx.stroke();
+  ell(ctx, -5, top + 16, 5, 4, '#222');
+  ctx.strokeStyle = '#4f7a3f'; ctx.lineWidth = 7; ctx.lineCap = 'round';      // ręka
+  ctx.beginPath(); ctx.moveTo(9, top + 8);
+  if (stop) ctx.lineTo(17, top - 3); else ctx.lineTo(11 + step, top + 24);
+  ctx.stroke();
+  const hy = top - 12;
+  ell(ctx, 0, hy, 14, 14, f.whistle > 0 ? '#f0a08a' : '#f1c7a5');
+  if (stop) ell(ctx, 17, top - 5, 4, 4, '#f1c7a5');           // dłoń przy wąsie
+  ell(ctx, 1, hy - 9, 23, 5, '#35592c');                      // kapelusz z piórkiem
+  ctx.fillStyle = '#3f6b33';
+  ctx.beginPath(); ctx.ellipse(0, hy - 10, 13, 13, 0, Math.PI, TAU); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#2a1c12'; ctx.fillRect(-13, hy - 14, 26, 3);
+  ctx.strokeStyle = '#d8443c'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-8, hy - 15); ctx.quadraticCurveTo(-16, hy - 24, -12, hy - 34); ctx.stroke();
+  ell(ctx, 3.5, hy - 1, 1.8, 2.2, '#3a2618'); ell(ctx, 10, hy - 1, 1.8, 2.2, '#3a2618');
+  ctx.strokeStyle = '#3a2618'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0.5, hy - 5); ctx.lineTo(6, hy - 5.5); ctx.moveTo(8, hy - 5.5); ctx.lineTo(13, hy - 5); ctx.stroke();
+  // wąsy — strzyże nimi bez przerwy, a na postoju szczególnie
+  const tw = Math.sin(time * (stop ? 17 : 6)) * (stop ? 0.45 : 0.12);
+  ctx.fillStyle = '#6b3f1d';
+  for (const sgn of [-1, 1]) {
+    ctx.save();
+    ctx.translate(7, hy + 6); ctx.rotate(sgn * tw);
+    ctx.beginPath();
+    ctx.moveTo(0, -2.5);
+    ctx.quadraticCurveTo(sgn * 10, -6, sgn * 17, -1);
+    ctx.quadraticCurveTo(sgn * 19, -6, sgn * 21, -7);
+    ctx.quadraticCurveTo(sgn * 20, 3, sgn * 12, 3);
+    ctx.quadraticCurveTo(sgn * 5, 3, 0, 2.5);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  if (f.whistle > 0) { ell(ctx, 13, hy + 10, 4, 3, '#cfcfcf'); }
+  ctx.restore();
+  if (f.whistle > 0) txt(ctx, 'FIUUU!', f.x + f.dir * 46, f.y - 118 + Math.sin(time * 40) * 2, 24, '#ffcf2e');
+}
+
+function drawForesterGround(ctx, f, time) {
+  if (f.state === 'idle' || !C.FORESTER_FINE) return;
+  ctx.save();
+  ctx.beginPath(); ctx.ellipse(f.x, f.y, C.FORESTER_SIGHT, C.FORESTER_SIGHT * 0.92, 0, 0, TAU);
+  ctx.fillStyle = 'rgba(255,225,110,0.06)'; ctx.fill();
+  ctx.setLineDash([4, 12]); ctx.lineDashOffset = time * 12;
+  ctx.strokeStyle = 'rgba(255,225,110,0.4)'; ctx.lineWidth = 3; ctx.stroke();
   ctx.restore();
 }
 
@@ -437,18 +563,29 @@ function drawHud(ctx, game, time) {
   const tm = Math.ceil(game.time), dusk = game.time <= C.DUSK_TIME;
   const pulse = dusk ? 1 + Math.abs(Math.sin(time * 5)) * 0.08 : 1;
   txt(ctx, `${Math.floor(tm / 60)}:${String(tm % 60).padStart(2, '0')}`, C.W / 2, 36, 46 * pulse, dusk ? '#ff7a5c' : '#fff');
-  txt(ctx, dusk ? 'Zmierzcha się!' : `Runda ${game.round}`, C.W / 2, 68, 17, dusk ? '#ffb38a' : '#d9c7a8', 'center', 3, 600);
+  txt(ctx, dusk ? 'Zmierzcha się!' : `Runda ${game.round} · ${game.map.name}`, C.W / 2, 68, 17, dusk ? '#ffb38a' : '#d9c7a8', 'center', 3, 600);
 }
 
 // ---------- świat ----------
 export function drawWorld(ctx, game, time) {
   ctx.save();
   if (game.shake > 0) ctx.translate(rand(-1, 1) * game.shake * 22, rand(-1, 1) * game.shake * 22);
-  ctx.drawImage(background('r' + game.round + '-' + game.wins.join('')), 0, 0);
+  ctx.drawImage(background('r' + game.round + '-' + game.wins.join(''), game), 0, 0);
+  if (game.pond) {                           // zmarszczki na wodzie
+    const w = game.pond;
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) {
+      const k = ((time * 0.25 + i / 3) % 1);
+      ctx.globalAlpha = 1 - k;
+      ctx.beginPath(); ctx.ellipse(w.x + (i - 1) * w.rx * 0.4, w.y + (i % 2 ? 12 : -10), w.rx * 0.3 * k + 6, w.ry * 0.3 * k + 3, 0, 0, TAU); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  drawForesterGround(ctx, game.forester, time);
   drawBoarGround(ctx, game, time);
 
   const items = [];
-  const movers = [...game.grannies, game.boar];
+  const movers = [...game.grannies, game.boar, game.forester];
   game.trees.forEach((t) => {
     const fade = movers.some((m) => m.y < t.y && m.y > t.y - t.R * 2.6 && Math.abs(m.x - t.x) < t.R * 1.3);
     items.push({ y: t.y, draw: () => drawTree(ctx, t, time, fade) });
@@ -461,7 +598,18 @@ export function drawWorld(ctx, game, time) {
       ctx.globalAlpha = 1;
     },
   }));
-  game.grannies.forEach((g) => items.push({ y: g.y, draw: () => drawGranny(ctx, g, time, 1.2) }));
+  game.grannies.forEach((g) => items.push({
+    y: g.y, draw: () => {
+      drawGranny(ctx, g, time, 1.2);
+      if (g.wet) {                           // po kolana w stawie
+        ell(ctx, g.x, g.y - 5, 31, 12, 'rgba(58,131,145,0.92)');
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(g.x, g.y - 5, 31 + Math.sin(time * 6) * 3, 12, 0, 0, TAU); ctx.stroke();
+      }
+    },
+  }));
+  const fo = game.forester;
+  if (fo.state !== 'idle') items.push({ y: fo.y, draw: () => drawForester(ctx, fo, time) });
   const b = game.boar;
   if (b.state !== 'idle' && b.state !== 'warn') items.push({ y: b.y, draw: () => drawBoar(ctx, b, time) });
   items.sort((a, c) => a.y - c.y).forEach((it) => it.draw());
@@ -473,6 +621,7 @@ export function drawWorld(ctx, game, time) {
   ctx.globalAlpha = 1;
   drawPrompts(ctx, game, time);
   game.grannies.forEach((g) => drawBubble(ctx, g));
+  if (fo.state !== 'idle') drawBubble(ctx, fo);
   for (const t of game.texts) {
     ctx.globalAlpha = Math.min(1, (t.life - t.t) * 3);
     txt(ctx, t.text, t.x, t.y, t.size * (1 + Math.max(0, 0.2 - t.t) * 2), t.color);
@@ -502,7 +651,7 @@ function padBtn(ctx, x, y, label, color) {
   txt(ctx, label, x, y + 1, label.length > 1 ? 12 : 17, '#fff', 'center', 0);
 }
 
-export function drawTitle(ctx, input, time, canStart, muted) {
+export function drawTitle(ctx, input, time, ready, muted, startIn) {
   ctx.drawImage(background('title'), 0, 0);
   ctx.fillStyle = 'rgba(20,35,15,0.35)'; ctx.fillRect(0, 0, C.W, C.H);
 
@@ -510,22 +659,29 @@ export function drawTitle(ctx, input, time, canStart, muted) {
   ctx.translate(C.W / 2, 92); ctx.rotate(Math.sin(time * 1.5) * 0.015);
   txt(ctx, 'BABCIE NA GRZYBY', 0, 0, 92, '#ffe9b0', 'center', 14);
   ctx.restore();
-  txt(ctx, 'dwie sąsiadki · jeden las · jeden dzik', C.W / 2, 156, 26, '#fff', 'center', 5, 600);
+  txt(ctx, 'sąsiedzi z jednej klatki · jeden las · jeden dzik', C.W / 2, 156, 26, '#fff', 'center', 5, 600);
 
-  // karty graczy
+  // karty graczy z wyborem postaci
   [0, 1].forEach((i) => {
     const p = C.PLAYERS[i], joined = !!input.slots[i];
     const x = i === 0 ? 70 : C.W - 70 - 300;
     panel(ctx, x, 200, 300, 300, joined ? 'rgba(42,29,18,0.92)' : 'rgba(42,29,18,0.7)');
+    if (ready[i]) { ctx.strokeStyle = '#7dff8a'; ctx.lineWidth = 6; rrect(ctx, x, 200, 300, 300, 22); ctx.stroke(); }
     ctx.globalAlpha = joined ? 1 : 0.45;
     drawGranny(ctx, {
-      id: i, x: x + 150, y: 400, flip: i === 0 ? 1 : -1, basket: joined ? ['borowik', 'kurka', 'kania'] : [],
-      moving: joined, walk: time * 7, stun: 0, poison: 0, immune: 0, elbowAnim: 0, shooAnim: 0, pickAnim: 0,
-    }, time, 2);
+      id: i, x: x + 150, y: 392, flip: i === 0 ? 1 : -1, basket: ready[i] ? ['borowik', 'kurka', 'kania'] : [],
+      moving: ready[i], walk: time * 7, stun: 0, poison: 0, immune: 0, elbowAnim: 0, shooAnim: 0, pickAnim: 0,
+    }, time, 1.9);
     ctx.globalAlpha = 1;
     txt(ctx, p.name, x + 150, 232, 34, p.ui);
-    if (joined) txt(ctx, `gotowa · ${input.label(i)}`, x + 150, 465, 22, '#7dff8a', 'center', 4, 600);
-    else if (Math.sin(time * 5) > -0.4) txt(ctx, 'wciśnij przycisk na padzie', x + 150, 465, 21, '#fff', 'center', 4, 600);
+    if (!joined) {
+      if (Math.sin(time * 5) > -0.4) txt(ctx, 'wciśnij przycisk na padzie', x + 150, 465, 21, '#fff', 'center', 4, 600);
+      return;
+    }
+    const sel = ready[i] ? '#9aa' : '#ffe45c';
+    txt(ctx, `◀  ${p.kind}  ▶`, x + 150, 428, 24, sel, 'center', 4);
+    if (ready[i]) txt(ctx, `${p.male ? 'gotowy' : 'gotowa'} ✓ · ${input.label(i)}`, x + 150, 466, 21, '#7dff8a', 'center', 4, 600);
+    else txt(ctx, '◀ ▶ postać · A — gotowe', x + 150, 466, 20, '#fff', 'center', 4, 600);
   });
 
   // środek: sterowanie i punktacja
@@ -533,7 +689,7 @@ export function drawTitle(ctx, input, time, canStart, muted) {
   txt(ctx, 'STEROWANIE', 640, 226, 20, '#c79a5b', 'center', 0);
   const rows = [
     ['A', '#3fae4f', 'zbierz grzyba'],
-    ['B', '#d8443c', 'łokieć — sąsiadce wypada grzyb'],
+    ['B', '#d8443c', 'łokieć — wytrąca grzyba z koszyka'],
     ['X', '#2f7fe0', '„a sio!” — razem przeganiacie dzika'],
     ['RT', '#555', 'zryw z laską'],
   ];
@@ -551,22 +707,26 @@ export function drawTitle(ctx, input, time, canStart, muted) {
   });
   txt(ctx, 'kania czy muchomor? patrz uważnie…', 640, 484, 16, '#d9c7a8', 'center', 0, 600);
 
-  if (canStart) {
-    const s = 1 + Math.sin(time * 6) * 0.04;
-    txt(ctx, 'Wciśnij A — idziemy do lasu!', C.W / 2, 560, 44 * s, '#7dff8a', 'center', 8);
+  const joinedAll = input.slots.every(Boolean);
+  if (startIn !== null) {
+    txt(ctx, 'Idziemy do lasu!', C.W / 2, 560, 46 * (1 + Math.sin(time * 10) * 0.04), '#7dff8a', 'center', 8);
+  } else if (joinedAll) {
+    txt(ctx, 'Wybierzcie postacie (◀ ▶) i wciśnijcie A', C.W / 2, 556, 28, '#fff', 'center', 5, 600);
   } else {
     txt(ctx, 'Podłączcie dwa pady i wciśnijcie na każdym dowolny przycisk', C.W / 2, 556, 26, '#fff', 'center', 5, 600);
   }
-  txt(ctx, 'Gramy do 2 wygranych rund · runda trwa 90 s · F11 lub dwuklik — pełny ekran', C.W / 2, 618, 19, '#e6d9bd', 'center', 4, 600);
+  txt(ctx, 'Uwaga na leśniczego: łokieć na jego oczach = mandat −2', C.W / 2, 592, 18, '#ffe9a0', 'center', 4, 600);
+  txt(ctx, 'Gramy do 2 wygranych rund · runda trwa 90 s · F11 lub dwuklik — pełny ekran', C.W / 2, 624, 19, '#e6d9bd', 'center', 4, 600);
   txt(ctx, 'Bez padów? Klawiatura: WSAD + F G H R   oraz   strzałki + K L J I', C.W / 2, 650, 17, '#cbbd9e', 'center', 4, 600);
   if (muted) txt(ctx, '🔇 kliknij myszką lub wciśnij klawisz, żeby włączyć dźwięk', C.W / 2, 690, 17, '#ffcf2e', 'center', 4, 600);
 }
 
-export function drawCountdown(ctx, t) {
+export function drawCountdown(ctx, t, game) {
   const n = Math.ceil(t), frac = t - Math.floor(t);
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(0, C.HUD_H, C.W, C.H - C.HUD_H);
   txt(ctx, n > 0 ? `${n}` : 'START!', C.W / 2, C.H / 2 + 20, 150 * (0.8 + frac * 0.4), '#ffe9b0', 'center', 16);
-  txt(ctx, 'Na grzyby, gotowe…', C.W / 2, C.H / 2 - 110, 34, '#fff', 'center', 6, 600);
+  txt(ctx, `Runda ${game.round} · ${game.map.name}`, C.W / 2, C.H / 2 - 160, 44, '#ffe9b0', 'center', 8);
+  txt(ctx, 'Na grzyby, gotowi…', C.W / 2, C.H / 2 - 110, 34, '#fff', 'center', 6, 600);
 }
 
 export function drawPause(ctx, reason) {
@@ -599,7 +759,7 @@ export function drawRoundEnd(ctx, game, res, t, time) {
       const n = g.basket.filter((b) => b === type).length, pts = C.TYPES[type].pts;
       line((sx, sy) => drawShroom(ctx, type, sx, sy, 0.95), `${C.TYPES[type].name} × ${n}`, `${n * pts}`, n ? '#fff' : 'rgba(255,255,255,0.4)');
     });
-    line((sx, sy) => txt(ctx, '±', sx, sy - 14, 28, '#d9c7a8', 'center', 0), 'dzik i muchomory', `${g.bonus > 0 ? '+' : ''}${g.bonus}`.replace('-', '−'),
+    line((sx, sy) => txt(ctx, '±', sx, sy - 14, 28, '#d9c7a8', 'center', 0), 'dzik, mandaty, muchomory', `${g.bonus > 0 ? '+' : ''}${g.bonus}`.replace('-', '−'),
       g.bonus < 0 ? '#ff7a6b' : g.bonus > 0 ? '#7dff8a' : 'rgba(255,255,255,0.4)');
     if (t > 1.5) {
       ctx.fillStyle = 'rgba(199,154,91,0.5)'; ctx.fillRect(x + 36, 462, 328, 2);
@@ -612,12 +772,12 @@ export function drawRoundEnd(ctx, game, res, t, time) {
   if (t > 1.5) {
     const s = 1 + Math.sin(time * 5) * 0.03;
     const head = res.winner < 0 ? 'Remis! Dzik jest rozczarowany.'
-      : res.matchOver ? `Królowa lasu: ${C.PLAYERS[res.winner].name}!`
+      : res.matchOver ? `${C.PLAYERS[res.winner].male ? 'Król' : 'Królowa'} lasu: ${C.PLAYERS[res.winner].name}!`
       : `Rundę wygrywa ${C.PLAYERS[res.winner].name}!`;
     txt(ctx, head, C.W / 2, 598, 46 * s, res.winner < 0 ? '#fff' : C.PLAYERS[res.winner].ui, 'center', 9);
     if (res.line) txt(ctx, `„${res.line}”`, C.W / 2, 642, 22, '#fff', 'center', 4, 600);
   }
   if (t > 2.4 && Math.sin(time * 5) > -0.5) {
-    txt(ctx, res.matchOver ? 'A — rewanż' : 'A — następna runda', C.W / 2, 686, 24, '#7dff8a', 'center', 5, 600);
+    txt(ctx, res.matchOver ? 'A — rewanż · B — zmiana postaci' : 'A — następna runda', C.W / 2, 686, 24, '#7dff8a', 'center', 5, 600);
   }
 }

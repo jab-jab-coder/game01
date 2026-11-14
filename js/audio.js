@@ -76,6 +76,12 @@ export class Sfx {
         [523, 659, 784, 1047].forEach((f, i) =>
           this.tone(f, 0.16, { type: 'triangle', vol: 0.16, delay: 0.25 + i * 0.09 }));
         break;
+      case 'whistle':
+        for (let i = 0; i < 6; i++) this.tone(i % 2 ? 2350 : 2100, 0.07, { type: 'square', vol: 0.07, delay: i * 0.07 });
+        break;
+      case 'splash': this.noise(0.3, { vol: 0.25, freq: 1400 }); this.tone(300, 0.2, { type: 'sine', vol: 0.1, to: 120 }); break;
+      case 'select': this.tone(660, 0.06, { type: 'triangle', vol: 0.14 }); break;
+      case 'ready': this.tone(660, 0.08, { type: 'triangle', vol: 0.16 }); this.tone(990, 0.14, { type: 'triangle', vol: 0.16, delay: 0.08 }); break;
       case 'beep': this.tone(440, 0.12, { type: 'square', vol: 0.1 }); break;
       case 'go': this.tone(880, 0.35, { type: 'square', vol: 0.12 }); break;
       case 'tick': this.tone(1000, 0.04, { type: 'square', vol: 0.06 }); break;

@@ -31,10 +31,15 @@ export class Game {
     ];
     this.grannies[1].flip = -1;
     this.grannies[1].fx = -1;
+    this.map = C.MAPS[(this.round - 1) % C.MAPS.length];
+    this.pond = this.map.pond
+      ? { x: C.W / 2 + rand(-70, 70), y: (C.ARENA.y0 + C.ARENA.y1) / 2 + rand(-30, 30), rx: rand(150, 185), ry: rand(82, 104) }
+      : null;
     this.trees = this.makeTrees();
+    this.forester = { state: 'idle', t: rand(...C.FORESTER_FIRST), x: -200, y: 0, dir: 1, walk: 0, nextStop: 0, whistle: 0, bubble: '', bubbleT: 0 };
     this.boar = { state: 'idle', t: rand(...C.BOAR_FIRST), x: -200, y: 0, dx: 1, dy: 0, tx: 0, ty: 0, flip: 1 };
     for (let i = 0; i < 9; i++) this.spawnShroom();
-    this.grannies.forEach((g) => this.say(g, pick(C.LINES.start), 2.6));
+    this.grannies.forEach((g) => this.say(g, C.line('start', g.id), 2.6));
   }
 
   score(g) {
@@ -49,16 +54,25 @@ export class Game {
       const t = {
         x: rand(C.ARENA.x0 + 40, C.ARENA.x1 - 40),
         y: rand(C.ARENA.y0 + 70, C.ARENA.y1 - 10),
-        r: 18, R: rand(40, 54), kind: Math.random() < 0.4 ? 1 : 0, seed: Math.random(),
+        r: 18, R: rand(40, 54), seed: Math.random(),
+        // 0 = liściaste, 1 = świerk, 2 = brzoza
+        kind: this.pond ? (Math.random() < 0.55 ? 2 : 1) : (Math.random() < 0.4 ? 1 : 0),
       };
       if (trees.some((o) => dist(o, t) < 200)) continue;
       if (this.grannies.some((g) => dist(g, t) < 170)) continue;
+      if (this.inPond(t, 1.4) || this.inPond({ x: t.x, y: t.y - 70 }, 1.25)) continue;
       trees.push(t);
     }
     return trees;
   }
 
+  inPond(p, k = 1) {
+    const w = this.pond;
+    return !!w && ((p.x - w.x) / (w.rx * k)) ** 2 + ((p.y - w.y) / (w.ry * k)) ** 2 < 1;
+  }
+
   freeSpot(p, pad = 0) {
+    if (this.inPond(p, 1.18)) return false;
     if (p.x < C.ARENA.x0 + 10 || p.x > C.ARENA.x1 - 10 || p.y < C.ARENA.y0 + 10 || p.y > C.ARENA.y1 - 10) return false;
     for (const t of this.trees) {
       if (dist(t, p) < t.r + 30 + pad) return false;
@@ -140,6 +154,7 @@ export class Game {
     this.grannies.forEach((g, i) => this.updateGranny(g, inputs[i], dt));
     this.separate();
     this.updateBoar(dt);
+    this.updateForester(dt);
 
     for (const s of this.shrooms) {
       s.age += dt; s.ttl -= dt; s.delay -= dt;
@@ -175,6 +190,7 @@ export class Game {
       const f = Math.pow(0.01, dt);
       g.kx *= f; g.ky *= f;
       g.dashT = 0;
+      g.wet = this.inPond(g);
     } else {
       const mag = Math.hypot(mx, my);
       if (mag > 0.05) {
@@ -186,17 +202,26 @@ export class Game {
         this.sfx.play('dash');
         this.puff(g.x, g.y - 6, 7);
       }
+      const wasWet = g.wet;
+      g.wet = this.inPond(g);
+      const slow = g.wet ? C.POND_SLOW : 1;
+      if (g.wet && !wasWet) {
+        this.puff(g.x, g.y, 8, 'rgba(170,225,235,0.9)', 130);
+        this.sfx.play('splash');
+        if (Math.random() < 0.6) this.say(g, C.line('splash', g.id));
+      }
       let vx, vy;
       if (g.dashT > 0) {
         g.dashT -= dt;
-        vx = g.fx * C.SPEED * C.DASH_MULT; vy = g.fy * C.SPEED * C.DASH_MULT;
+        vx = g.fx * C.SPEED * C.DASH_MULT * slow; vy = g.fy * C.SPEED * C.DASH_MULT * slow;
         if (Math.random() < 0.5) this.puff(g.x, g.y - 4, 1, 'rgba(230,220,190,0.6)', 40);
       } else {
-        vx = mx * C.SPEED; vy = my * C.SPEED;
+        vx = mx * C.SPEED * slow; vy = my * C.SPEED * slow;
       }
       g.x += vx * dt; g.y += vy * dt;
       const sp = Math.hypot(vx, vy);
       g.moving = sp > 20;
+      if (g.wet && g.moving && Math.random() < dt * 9) this.puff(g.x, g.y - 2, 1, 'rgba(170,225,235,0.8)', 60);
       g.walk += sp * dt * 0.06;
 
       if (inp.collect) this.tryCollect(g);
@@ -204,7 +229,7 @@ export class Game {
       if (inp.shoo) {
         g.shooT = C.SHOO_WINDOW; g.shooAnim = 0.35;
         this.sfx.play('shoo');
-        if (this.boar.state === 'paw' && dist(g, this.boar) < C.SHOO_R) this.say(g, pick(C.LINES.shoo), 0.9);
+        if (this.boar.state === 'paw' && dist(g, this.boar) < C.SHOO_R) this.say(g, C.line('shoo', g.id), 0.9);
       }
     }
 
@@ -240,7 +265,7 @@ export class Game {
     if (best.type === 'muchomor') {
       g.bonus += def.pts;
       g.poison = C.POISON_TIME;
-      this.say(g, pick(C.LINES.poison), 2.2);
+      this.say(g, C.line('poison', g.id), 2.2);
       this.floatText(g.x, g.y - 90, `${def.pts}`, '#ff5a5a', 36);
       this.puff(g.x, g.y - 40, 12, 'rgba(140,220,90,0.8)', 120);
       this.sfx.play('bad');
@@ -249,8 +274,8 @@ export class Game {
       g.basket.push(best.type);
       this.floatText(g.x, g.y - 90, `+${def.pts}`, def.pts >= 4 ? '#ffe45c' : '#fff', 24 + def.pts * 3);
       this.sfx.play('pick', def.pts);
-      if (best.type === 'borowik') this.say(g, pick(C.LINES.borowik));
-      else if (best.dropped && Math.random() < 0.5) this.say(g, pick(C.LINES.steal));
+      if (best.type === 'borowik') this.say(g, C.line('borowik', g.id));
+      else if (best.dropped && Math.random() < 0.5) this.say(g, C.line('steal', g.id));
     }
   }
 
@@ -264,17 +289,68 @@ export class Game {
     g.flip = dx < 0 ? -1 : 1;
     o.stun = C.ELBOW_STUN; o.immune = C.ELBOW_IMMUNE;
     o.kx = (dx / d) * 560; o.ky = (dy / d) * 560;
-    this.say(g, pick(C.LINES.elbow));
-    this.say(o, pick(C.LINES.hit));
+    this.say(g, C.line('elbow', g.id));
+    this.say(o, C.line('hit', o.id));
     this.sfx.play('thump');
     this.puff((g.x + o.x) / 2, (g.y + o.y) / 2 - 40, 8, 'rgba(255,255,255,0.9)', 140);
     this.input.rumble(o.id, 0.7, 200);
     this.input.rumble(g.id, 0.3, 100);
+    this.foresterSees(g);
     if (o.basket.length) {
       const type = o.basket.splice((Math.random() * o.basket.length) | 0, 1)[0];
       const a = Math.atan2(dy, dx) + rand(-0.9, 0.9);
       this.dropShroom(type, o.x, o.y, Math.cos(a) * 330, Math.sin(a) * 330);
     }
+  }
+
+  // ---------- leśniczy ----------
+  updateForester(dt) {
+    const f = this.forester;
+    f.t -= dt;
+    if (f.bubbleT > 0) f.bubbleT -= dt;
+    if (f.whistle > 0) f.whistle -= dt;
+    switch (f.state) {
+      case 'idle':
+        if (f.t <= 0 && this.time > 14) {
+          f.dir = Math.random() < 0.5 ? 1 : -1;
+          f.x = f.dir > 0 ? -70 : C.W + 70;
+          let y = rand(C.ARENA.y0 + 50, C.ARENA.y1 - 20);
+          if (this.pond && Math.abs(y - this.pond.y) < this.pond.ry + 30) {   // obchodzi staw
+            y = this.pond.y + (y < this.pond.y ? -1 : 1) * (this.pond.ry + rand(40, 80));
+          }
+          f.y = clamp(y, C.ARENA.y0 + 30, C.ARENA.y1);
+          f.state = 'walk'; f.nextStop = rand(2.5, 4.5);
+        }
+        break;
+      case 'walk':
+        f.x += f.dir * C.FORESTER_SPEED * dt;
+        f.walk += dt * 7;
+        f.nextStop -= dt;
+        if (f.nextStop <= 0 && f.x > 160 && f.x < C.W - 160) {
+          f.state = 'stop'; f.t = 2.4;
+          this.say(f, C.line('forester'), 2.2);
+        }
+        if (f.x < -90 || f.x > C.W + 90) { f.state = 'idle'; f.t = rand(...C.FORESTER_EVERY); }
+        break;
+      case 'stop':
+        if (f.t <= 0) { f.state = 'walk'; f.nextStop = rand(3, 5.5); }
+        break;
+    }
+  }
+
+  // Łokieć na oczach leśniczego kończy się mandatem
+  foresterSees(g) {
+    const f = this.forester;
+    if (!C.FORESTER_FINE || f.state === 'idle' || dist(g, f) > C.FORESTER_SIGHT) return;
+    g.bonus -= C.FORESTER_FINE;
+    f.whistle = 0.9;
+    f.dir = g.x < f.x ? -1 : 1;
+    f.state = 'stop'; f.t = 1.6;
+    this.say(f, C.line('fine'), 1.6);
+    this.say(g, C.line('fined', g.id), 1.8);
+    this.floatText(g.x, g.y - 120, `mandat −${C.FORESTER_FINE}`, '#ff5a5a', 30);
+    this.sfx.play('whistle');
+    this.input.rumble(g.id, 0.5, 250);
   }
 
   // ---------- dzik ----------
@@ -358,7 +434,7 @@ export class Game {
       const a = Math.random() * Math.PI * 2, v = rand(160, 420);
       this.dropShroom(type, g.x, g.y, Math.cos(a) * v, Math.sin(a) * v);
     }
-    this.say(g, pick(C.LINES.boarHit), 1.8);
+    this.say(g, C.line('boarHit', g.id), 1.8);
     if (n) this.floatText(g.x, g.y - 100, `−${n} grzyb${n === 1 ? '' : n < 5 ? 'y' : 'ów'}!`, '#ff5a5a', 30);
     this.puff(g.x, g.y - 30, 16, 'rgba(255,255,255,0.9)', 220);
     this.shake = 0.45;
@@ -384,7 +460,8 @@ export class Game {
       this.floatText(g.x, g.y - 95, `+${C.SHOO_BONUS}`, '#7dff8a', 40);
       this.input.rumble(g.id, 0.4, 150);
     });
-    this.say(pick(this.grannies), pick(C.LINES.shooOk), 2.2);
+    const talker = pick(this.grannies);
+    this.say(talker, C.line('shooOk', talker.id), 2.2);
     this.puff(b.x, b.y - 20, 14, 'rgba(255,255,255,0.9)', 200);
     this.sfx.play('squeal');
   }
@@ -396,6 +473,6 @@ function makeGranny(id, x, y) {
     basket: [], bonus: 0,
     stun: 0, poison: 0, dashT: 0, dashCd: 0, elbowCd: 0, elbowAnim: 0,
     immune: 0, boarImmune: 0, shooT: 0, shooAnim: 0, pickAnim: 0,
-    bubble: '', bubbleT: 0, walk: 0, moving: false,
+    bubble: '', bubbleT: 0, walk: 0, moving: false, wet: false,
   };
 }
