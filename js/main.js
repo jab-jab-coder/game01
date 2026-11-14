@@ -88,7 +88,8 @@ function update(dt) {
         const st = input.state[input.slots[i]];
         // wybór postaci: lewo / prawo
         if (!ready[i] && Math.abs(st.mx) > 0.6 && Math.abs(prevMx[i]) <= 0.6) {
-          C.PLAYERS[i].kind = C.PLAYERS[i].kind === 'babcia' ? 'dziadek' : 'babcia';
+          const n = C.KINDS.length, k = C.KINDS.indexOf(C.PLAYERS[i].kind);
+          C.PLAYERS[i].kind = C.KINDS[(k + (st.mx > 0 ? 1 : n - 1)) % n];
           sfx.play('select');
         }
         prevMx[i] = st.mx;

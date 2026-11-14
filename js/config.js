@@ -17,9 +17,12 @@ export const TYPES = {
   kania:      { name: 'Kania',      pts: 4,  w: 11 },
   podgrzybek: { name: 'Podgrzybek', pts: 3,  w: 25 },
   kurka:      { name: 'Kurka',      pts: 1,  w: 40 },
-  muchomor:   { name: 'Muchomor',   pts: -3, w: 16 },
+  muchomor:   { name: 'Muchomor',   pts: -3, w: 16 },   // sromotnikowy — udaje kanię
+  amanita:    { name: 'Amanita',    pts: 5,  w: 9 },    // czerwony; +5, ale −10 gdy leśniczy jest w lesie
 };
-export const TYPE_ORDER = ['borowik', 'kania', 'podgrzybek', 'kurka'];
+export const TYPE_ORDER = ['borowik', 'amanita', 'kania', 'podgrzybek', 'kurka'];
+export const AMANITA_FINE = 10;
+export const MAX_AMANITAS = 3;
 
 export const MAX_SHROOMS = 16;
 export const MAX_MUCHOMORS = 4;
@@ -59,20 +62,29 @@ export const FORESTER_FINE = 2;          // mandat za łokieć na jego oczach (0
 // Mapy: runda 1 → pierwsza, runda 2 → druga, runda 3 → znowu pierwsza
 export const MAPS = [
   { id: 'zagajnik', name: 'Zagajnik za blokiem' },
-  { id: 'staw', name: 'Stary bór nad stawem', pond: true },
+  { id: 'staw', name: 'Stary bór nad stawem' },
+  { id: 'rzeka', name: 'Las nad rzeką' },
+  { id: 'dzialka', name: 'Działka' },
 ];
+
+// Zwierzyna
+export const SQUIRREL_SPEED = 230;
+export const SQUIRREL_STEAL = 0.4;        // szansa, że po zejściu z drzewa ukradnie grzyba
+export const HARE_EVERY = [9, 16];
 export const POND_SLOW = 0.5;            // brodzenie w stawie spowalnia
 
 // Gracze: kolory są stałe, postać (babcia / dziadek) wybiera się przed startem
+export const KINDS = ['babcia', 'dziadek', 'kasia', 'jacek'];
+export const KIND_LABEL = { babcia: 'babcia', dziadek: 'dziadek', kasia: 'babcia Kasia', jacek: 'dziadek Jacek' };
 export const PLAYERS = [
-  { kind: 'babcia', names: { babcia: 'Halina', dziadek: 'Zdzisław' },
+  { kind: 'babcia', names: { babcia: 'Halina', dziadek: 'Zdzisław', kasia: 'Kasia', jacek: 'Jacek' },
     scarf: '#e8457e', scarf2: '#ffd1e0', dress: '#7b4fa6', apron: '#efe3f7', ui: '#ff6b9d' },
-  { kind: 'babcia', names: { babcia: 'Krystyna', dziadek: 'Mieczysław' },
+  { kind: 'babcia', names: { babcia: 'Krystyna', dziadek: 'Mieczysław', kasia: 'Kasia', jacek: 'Jacek' },
     scarf: '#2f8fd6', scarf2: '#cfe9ff', dress: '#c9772b', apron: '#fbeed6', ui: '#5bb6ff' },
 ];
 for (const p of PLAYERS) {
   Object.defineProperty(p, 'name', { get() { return this.names[this.kind]; } });
-  Object.defineProperty(p, 'male', { get() { return this.kind === 'dziadek'; } });
+  Object.defineProperty(p, 'male', { get() { return this.kind === 'dziadek' || this.kind === 'jacek'; } });
 }
 
 // Teksty w dymkach. Para [żeńska, męska] = wersja zależna od wybranej postaci.
@@ -105,6 +117,13 @@ export const LINES = {
   forester: ['Hm, hm.', 'Porządek w lesie musi być.', 'Dzień dobry państwu.', 'Ściółki nie grabić!',
     'Dzika ktoś widział?', 'Mchu nie deptać.', 'Za moich czasów grzyby były większe.', 'Tylko spokojnie tam.',
     'Wąs mi mówi, że będzie padać.', 'Ja tu wszystko widzę.'],
+  amanita: ['Na muchy. Oczywiście, że na muchy.', 'Do celów naukowych.', 'Ładny, to biorę.', 'Na nalewkę. Zdrowotną.',
+    'Do wazonu jak znalazł.'],
+  caught: ['To dla ozdoby!', 'Podrzucono mi!', ['Myślałam, że to pomidor.', 'Myślałem, że to pomidor.'],
+    'To nie moje, ja tylko trzymam!', 'Okulary mi zaparowały!'],
+  amanitaFine: ['Muchomor?! Mandat!', 'Dziesięć punktów karnych!', 'Tego się nie zbiera, obywatelu!',
+    'Wąs mi się zjeżył!'],
+  squirrel: ['Złodziejka!', 'Oddawaj, ruda!', 'To był mój grzyb!', 'A masz ty rozum?!', 'Zgłoszę to leśniczemu!'],
   fine: ['Mandat!', 'Nie szarpać się w lesie!', 'Spokój w moim rewirze!', 'Dwa punkty karne!', 'Las to nie bazar!'],
 };
 
