@@ -1,0 +1,20 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #10210f;
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Baloo 2", "Trebuchet MS", Verdana, sans-serif;
+  color: #fff;
+}
+
+canvas {
+  display: block;
+  cursor: none;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
+}
