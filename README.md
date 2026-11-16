@@ -6,13 +6,25 @@ Zręcznościowa gra dla dwóch osób na pady. Sąsiedzi z jednego bloku od lat r
 
 ## Jak uruchomić
 
-1. Podłącz dwa pady (Xbox / PlayStation, USB lub Bluetooth) do komputera.
-2. Otwórz link powyżej w Chrome lub Edge (Firefox też działa).
-3. Każdy gracz wciska dowolny przycisk na swoim padzie — przeglądarka „widzi” pada dopiero po pierwszym wciśnięciu.
-4. Gałką w lewo / prawo wybierz postać (babcia, dziadek, babcia Kasia z długimi włosami albo łysy, wytatuowany dziadek Jacek) i zatwierdź **A**. Gra rusza, gdy oboje są gotowi.
-5. **F11** lub dwuklik — pełny ekran. Kliknij raz myszką, żeby włączyć dźwięk.
+Po otwarciu linku wybierz w menu (gałka / krzyżak góra–dół, **A**) jeden z trybów.
 
-Bez padów da się grać na klawiaturze: `WSAD + F G H R` oraz `strzałki + K L J I`, wybór postaci: `A/D` i strzałki.
+### Gra lokalna — dwa pady przy jednym komputerze
+
+1. Podłącz dwa pady (Xbox / PlayStation, USB lub Bluetooth).
+2. Każdy gracz wciska dowolny przycisk na swoim padzie — przeglądarka „widzi” pada dopiero po pierwszym wciśnięciu.
+3. Gałką w lewo / prawo wybierz postać (babcia, dziadek, babcia Kasia albo łysy, wytatuowany dziadek Jacek) i zatwierdź **A**. Gra rusza, gdy oboje są gotowi.
+
+### Gra online — każdy przy swoim komputerze
+
+1. Gospodarz wybiera **Załóż pokój online** i dostaje 4-cyfrowy kod oraz link (klawisz `C` lub kliknięcie kopiuje link).
+2. Drugi gracz otwiera link albo wybiera **Dołącz do pokoju** i wpisuje kod.
+3. Każdy wciska przycisk na swoim padzie, wybiera postać i zatwierdza **A**. Gospodarz gra pierwszą postacią (po lewej), gość drugą.
+
+Jak to działa: połączenie to WebRTC peer-to-peer przez bibliotekę [PeerJS](https://peerjs.com) (`vendor/peerjs.min.js`, licencja MIT). Publiczny serwer PeerJS tylko zestawia połączenie, potem gra leci bezpośrednio między przeglądarkami. Całą rozgrywkę liczy komputer gospodarza i 30 razy na sekundę wysyła gościowi stan świata; gość odsyła samo sterowanie, więc widzi swoje ruchy z opóźnieniem równym pingowi.
+
+Ograniczenia: nie ma serwera pośredniczącego (TURN), więc w niektórych sieciach — część sieci firmowych i komórkowych — połączenia nie da się zestawić. Karta gospodarza musi być na wierzchu (przeglądarka wstrzymuje grę w karcie w tle). Własny serwer PeerJS można podać w adresie: `?peerhost=…&peerport=…&peersecure=1`.
+
+**F11** lub dwuklik — pełny ekran. Kliknij raz myszką, żeby włączyć dźwięk. Bez padów da się grać na klawiaturze: `WSAD + F G H R` oraz `strzałki + K L J I`, w menu `Enter`.
 
 ## Sterowanie
 
@@ -50,7 +62,8 @@ Czysty HTML + Canvas + JavaScript (moduły ES), bez zależności i bez builda �
 | `js/game.js` | logika: babcie, grzyby, dzik, punktacja |
 | `js/render.js` | grafika rysowana kodem, HUD, ekrany |
 | `js/audio.js` | dźwięki syntetyzowane w WebAudio |
-| `js/main.js` | pętla gry i przejścia między ekranami |
+| `js/net.js` | pokoje online: PeerJS / WebRTC |
+| `js/main.js` | pętla gry, przejścia między ekranami, synchronizacja gospodarz → gość |
 
 Lokalnie: `python3 -m http.server` w katalogu repo i `http://localhost:8000` (moduły ES nie działają z `file://`).
 
@@ -63,5 +76,6 @@ Lokalnie: `python3 -m http.server` w katalogu repo i `http://localhost:8000` (mo
 - [ ] **5. Strojenie po pierwszych partiach na padach** — prędkości, zasięg łokcia, częstotliwość dzika (`js/config.js`)
 - [x] **6. Więcej treści** — nowe teksty, leśniczy, wybór babcia / dziadek, druga mapa
 - [x] **6b. Zwierzyna i plansze** — amanita, Kasia i Jacek, wiewiórka, zając, rzeka, działka
-- [ ] **6c. Jeszcze więcej żartu** — muzyczka, deszcz
+- [x] **6c. Gra online** — pokoje z kodem, WebRTC peer-to-peer (PeerJS)
+- [ ] **6d. Jeszcze więcej żartu** — muzyczka, deszcz
 - [ ] **7. Wygoda** — wybór długości meczu, tryb turniejowy, zapamiętywanie wyników

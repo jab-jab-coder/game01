@@ -7,7 +7,7 @@ const KB = [
   { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight',
     collect: 'KeyK', elbow: 'KeyL', shoo: 'KeyJ', dash: 'KeyI' },
 ];
-const BUTTONS = ['collect', 'elbow', 'shoo', 'dash', 'start'];
+export const BUTTONS = ['collect', 'elbow', 'shoo', 'dash', 'start'];
 const DEADZONE = 0.25;
 const EMPTY = { mx: 0, my: 0, collect: false, elbow: false, shoo: false, dash: false, start: false };
 const PREVENT = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space']);
@@ -18,6 +18,12 @@ export class Input {
     this.slots = [null, null];   // id źródła przypisanego do gracza
     this.state = {};
     this.prev = {};
+    // gracz zdalny (gra online): wirtualne źródło 'net'
+    this.netOn = false;
+    this.remote = { mx: 0, my: 0, c: {} };   // c = liczniki wciśnięć przycisków
+    this.netSeen = {};
+    this.netPressed = {};
+    this.onNetRumble = null;
     addEventListener('keydown', (e) => {
       this.keys.add(e.code);
       if (PREVENT.has(e.code)) e.preventDefault();
@@ -56,12 +62,32 @@ export class Input {
         start: b(9),              // Start / Options
       });
     }
+    if (this.netOn) {
+      // Wciśnięcia liczymy licznikami po stronie gościa — żadne nie zginie między pakietami
+      const r = this.remote;
+      for (const b of BUTTONS) {
+        const n = +r.c?.[b] || 0;
+        this.netPressed[b] = this.netSeen[b] !== undefined && n !== this.netSeen[b];
+        this.netSeen[b] = n;
+      }
+      s.net = norm({ mx: clampAxis(r.mx), my: clampAxis(r.my), collect: false, elbow: false, shoo: false, dash: false, start: false });
+    }
     this.state = s;
+  }
+
+  resetNet(on) {
+    this.netOn = on;
+    this.remote = { mx: 0, my: 0, c: {} };
+    this.netSeen = {};
+    this.netPressed = {};
   }
 
   sources() { return Object.keys(this.state); }
   isPad(id) { return !!id && id.startsWith('gp'); }
-  pressed(id, btn) { return !!this.state[id]?.[btn] && !this.prev[id]?.[btn]; }
+  pressed(id, btn) {
+    if (id === 'net') return !!this.netPressed[btn];
+    return !!this.state[id]?.[btn] && !this.prev[id]?.[btn];
+  }
   anyPressed(id) { return BUTTONS.some((b) => this.pressed(id, b)); }
   connected(slot) { return !!this.slots[slot] && !!this.state[this.slots[slot]]; }
 
@@ -83,11 +109,13 @@ export class Input {
   label(slot) {
     const id = this.slots[slot];
     if (!id) return '';
+    if (id === 'net') return 'online';
     return this.isPad(id) ? `Pad ${+id.slice(2) + 1}` : `Klawiatura ${+id.slice(2) + 1}`;
   }
 
   rumble(slot, strength = 0.6, ms = 180) {
     const id = this.slots[slot];
+    if (id === 'net') { this.onNetRumble?.(strength, ms); return; }
     if (!this.isPad(id)) return;
     try {
       const gp = navigator.getGamepads()[+id.slice(2)];
@@ -97,6 +125,8 @@ export class Input {
     } catch { /* pad bez wibracji */ }
   }
 }
+
+const clampAxis = (v) => Math.max(-1, Math.min(1, +v || 0));
 
 function norm(s) {
   const m = Math.hypot(s.mx, s.my);

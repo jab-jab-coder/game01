@@ -12,6 +12,7 @@ export class Game {
     this.input = input;
     this.wins = [0, 0];
     this.round = 0;
+    this.matchId = Math.random().toString(36).slice(2, 8);
     // kolejność plansz losowana na mecz; ?mapa=dzialka (albo 1–4) wymusza pierwszą
     this.mapOrder = C.MAPS.map((_, i) => i).sort(() => Math.random() - 0.5);
     const want = new URLSearchParams(location.search).get('mapa');

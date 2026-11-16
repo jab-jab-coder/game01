@@ -819,7 +819,7 @@ function drawHud(ctx, game, time) {
 export function drawWorld(ctx, game, time) {
   ctx.save();
   if (game.shake > 0) ctx.translate(rand(-1, 1) * game.shake * 22, rand(-1, 1) * game.shake * 22);
-  ctx.drawImage(background('r' + game.round + '-' + game.wins.join(''), game), 0, 0);
+  ctx.drawImage(background(game.matchId + '-' + game.round, game), 0, 0);
   if (game.pond) {                           // zmarszczki na wodzie
     const w = game.pond;
     ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 2;
@@ -907,7 +907,7 @@ function padBtn(ctx, x, y, label, color) {
   txt(ctx, label, x, y + 1, label.length > 1 ? 12 : 17, '#fff', 'center', 0);
 }
 
-export function drawTitle(ctx, input, time, ready, muted, startIn) {
+export function drawTitle(ctx, input, time, ready, muted, startIn, online) {
   ctx.drawImage(background('title'), 0, 0);
   ctx.fillStyle = 'rgba(20,35,15,0.35)'; ctx.fillRect(0, 0, C.W, C.H);
 
@@ -932,6 +932,12 @@ export function drawTitle(ctx, input, time, ready, muted, startIn) {
     txt(ctx, p.name, x + 150, 232, 34, p.ui);
     if (!joined) {
       if (Math.sin(time * 5) > -0.4) txt(ctx, 'wciśnij przycisk na padzie', x + 150, 465, 21, '#fff', 'center', 4, 600);
+      return;
+    }
+    if (input.slots[i] === 'net') {                            // gracz po drugiej stronie łącza
+      txt(ctx, C.KIND_LABEL[p.kind], x + 150, 428, 24, '#cfd6dd', 'center', 4);
+      if (ready[i]) txt(ctx, `${p.male ? 'gotowy' : 'gotowa'} ✓ · online`, x + 150, 466, 21, '#7dff8a', 'center', 4, 600);
+      else txt(ctx, 'online · wybiera postać…', x + 150, 466, 20, '#9fd0ff', 'center', 4, 600);
       return;
     }
     const sel = ready[i] ? '#9aa' : '#ffe45c';
@@ -969,12 +975,86 @@ export function drawTitle(ctx, input, time, ready, muted, startIn) {
   } else if (joinedAll) {
     txt(ctx, 'Wybierzcie postacie (◀ ▶) i wciśnijcie A', C.W / 2, 556, 28, '#fff', 'center', 5, 600);
   } else {
-    txt(ctx, 'Podłączcie dwa pady i wciśnijcie na każdym dowolny przycisk', C.W / 2, 556, 26, '#fff', 'center', 5, 600);
+    txt(ctx, online ? 'Wciśnij dowolny przycisk na swoim padzie' : 'Podłączcie dwa pady i wciśnijcie na każdym dowolny przycisk', C.W / 2, 556, 26, '#fff', 'center', 5, 600);
   }
   txt(ctx, 'Leśniczy patrzy: łokieć przy nim = mandat −2 · kania i muchomor wyglądają prawie tak samo', C.W / 2, 592, 18, '#ffe9a0', 'center', 4, 600);
   txt(ctx, 'Gramy do 2 wygranych rund · runda trwa 90 s · F11 lub dwuklik — pełny ekran', C.W / 2, 624, 19, '#e6d9bd', 'center', 4, 600);
   txt(ctx, 'Bez padów? Klawiatura: WSAD + F G H R   oraz   strzałki + K L J I', C.W / 2, 650, 17, '#cbbd9e', 'center', 4, 600);
   if (muted) txt(ctx, '🔇 kliknij myszką lub wciśnij klawisz, żeby włączyć dźwięk', C.W / 2, 690, 17, '#ffcf2e', 'center', 4, 600);
+  if (online) txt(ctx, `gra online · pokój ${online}`, C.W - 24, 24, 20, '#9fd0ff', 'right', 4, 600);
+  txt(ctx, 'B — wstecz', 24, 24, 18, '#cbbd9e', 'left', 4, 600);
+}
+
+// ---------- menu i ekrany gry online ----------
+function menuBackdrop(ctx, time) {
+  ctx.drawImage(background('title'), 0, 0);
+  ctx.fillStyle = 'rgba(20,35,15,0.4)'; ctx.fillRect(0, 0, C.W, C.H);
+  ctx.save();
+  ctx.translate(C.W / 2, 92); ctx.rotate(Math.sin(time * 1.5) * 0.015);
+  txt(ctx, 'BABCIE NA GRZYBY', 0, 0, 92, '#ffe9b0', 'center', 14);
+  ctx.restore();
+}
+
+export function drawMenu(ctx, time, idx, notice, muted) {
+  menuBackdrop(ctx, time);
+  txt(ctx, 'sąsiedzi z jednej klatki · jeden las · jeden dzik', C.W / 2, 156, 26, '#fff', 'center', 5, 600);
+  const items = [
+    ['Gra lokalna', 'dwa pady przy jednym komputerze'],
+    ['Załóż pokój online', 'dostaniesz kod dla drugiego gracza'],
+    ['Dołącz do pokoju', 'wpisz kod od gospodarza'],
+  ];
+  items.forEach(([label, sub], i) => {
+    const y = 226 + i * 112, on = i === idx, w = on ? 620 + Math.sin(time * 6) * 8 : 580;
+    panel(ctx, C.W / 2 - w / 2, y, w, 92, on ? 'rgba(74,58,24,0.96)' : 'rgba(42,29,18,0.8)');
+    if (on) { ctx.strokeStyle = '#ffd23e'; ctx.lineWidth = 6; rrect(ctx, C.W / 2 - w / 2, y, w, 92, 22); ctx.stroke(); }
+    txt(ctx, label, C.W / 2, y + 36, 38, on ? '#ffe45c' : '#fff', 'center', 6);
+    txt(ctx, sub, C.W / 2, y + 70, 19, on ? '#fff' : '#cbbd9e', 'center', 3, 600);
+  });
+  txt(ctx, '▲ ▼ wybór · A — dalej', C.W / 2, 590, 24, '#7dff8a', 'center', 5, 600);
+  txt(ctx, 'Klawiatura: W / S lub strzałki, Enter', C.W / 2, 624, 17, '#cbbd9e', 'center', 4, 600);
+  if (notice) txt(ctx, notice, C.W / 2, 662, 22, '#ff9a8a', 'center', 5, 600);
+  if (muted) txt(ctx, '🔇 kliknij myszką lub wciśnij klawisz, żeby włączyć dźwięk', C.W / 2, 696, 17, '#ffcf2e', 'center', 4, 600);
+}
+
+// o = { screen: 'host' | 'join', status, error, code, link, copied, digits, pos }
+export function drawNet(ctx, time, o) {
+  menuBackdrop(ctx, time);
+  panel(ctx, 240, 180, 800, 420);
+  const dots = '.'.repeat(1 + (Math.floor(time * 2) % 3));
+  if (o.screen === 'host') {
+    txt(ctx, 'TWÓJ POKÓJ', C.W / 2, 222, 26, '#c79a5b', 'center', 0);
+    if (o.status === 'error') {
+      txt(ctx, o.error, C.W / 2, 360, 28, '#ff9a8a', 'center', 5, 600);
+      txt(ctx, 'A — spróbuj jeszcze raz', C.W / 2, 420, 24, '#7dff8a', 'center', 5, 600);
+    } else if (o.status !== 'waiting') {
+      txt(ctx, `Zakładam pokój${dots}`, C.W / 2, 370, 36, '#fff', 'center', 6);
+    } else {
+      txt(ctx, o.code.split('').join(' '), C.W / 2, 318, 130, '#ffe45c', 'center', 14);
+      txt(ctx, 'Podaj ten kod drugiemu graczowi albo wyślij mu link:', C.W / 2, 414, 22, '#fff', 'center', 4, 600);
+      txt(ctx, o.link, C.W / 2, 452, 21, '#9fd0ff', 'center', 4, 600);
+      txt(ctx, o.copied ? 'link skopiowany ✓' : 'C lub kliknięcie myszką — skopiuj link', C.W / 2, 486, 18, o.copied ? '#7dff8a' : '#cbbd9e', 'center', 3, 600);
+      txt(ctx, `Czekam na drugiego gracza${dots}`, C.W / 2, 546, 28, '#7dff8a', 'center', 5, 600);
+    }
+  } else {
+    txt(ctx, 'DOŁĄCZ DO POKOJU', C.W / 2, 222, 26, '#c79a5b', 'center', 0);
+    const busy = o.status === 'connecting';
+    o.digits.forEach((d, i) => {
+      const x = C.W / 2 - 222 + i * 148, on = i === o.pos && !busy;
+      panel(ctx, x - 55, 262, 110, 150, on ? 'rgba(74,58,24,0.96)' : 'rgba(20,14,8,0.9)');
+      if (on) {
+        ctx.strokeStyle = '#ffd23e'; ctx.lineWidth = 6; rrect(ctx, x - 55, 262, 110, 150, 22); ctx.stroke();
+        txt(ctx, '▲', x, 244, 22, '#ffd23e', 'center', 4); txt(ctx, '▼', x, 432, 22, '#ffd23e', 'center', 4);
+      }
+      txt(ctx, `${d}`, x, 342, 104, busy ? '#9aa' : '#fff', 'center', 10);
+    });
+    if (busy) txt(ctx, `Łączę z pokojem ${o.code}${dots}`, C.W / 2, 500, 30, '#7dff8a', 'center', 5, 600);
+    else {
+      if (o.status === 'error') txt(ctx, o.error, C.W / 2, 478, 24, '#ff9a8a', 'center', 5, 600);
+      txt(ctx, '◀ ▶ pozycja · ▲ ▼ cyfra · A — połącz', C.W / 2, 522, 24, '#7dff8a', 'center', 5, 600);
+      txt(ctx, 'na klawiaturze można po prostu wpisać cyfry', C.W / 2, 556, 18, '#cbbd9e', 'center', 3, 600);
+    }
+  }
+  txt(ctx, 'B — wróć do menu', C.W / 2, 640, 22, '#fff', 'center', 5, 600);
 }
 
 export function drawCountdown(ctx, t, game) {
